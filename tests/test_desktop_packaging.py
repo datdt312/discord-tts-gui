@@ -2,6 +2,7 @@
 import ast
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -12,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('desktop_builder', ROOT / 'packaging/build_desktop.py')
 builder = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(builder)
@@ -139,6 +140,10 @@ class DesktopPackagingTests(unittest.TestCase):
                 names = archive.namelist()
                 self.assertIn('Discord TTS GUI/Discord TTS GUI.exe', names)
                 self.assertIn('README.md', names)
+                for target in re.findall(r'\[[^\]]+\]\(([^)]+)\)', archive.read('README.md').decode()):
+                    if '://' not in target and not target.startswith('#'):
+                        self.assertTrue(target in names or any(name.startswith(target.rstrip('/') + '/')
+                                                               for name in names), target)
                 self.assertTrue(any(name.startswith('licenses/') for name in names))
                 self.assertNotIn('.env', names)
                 self.assertFalse(any('.venv' in name or '.git/' in name for name in names))

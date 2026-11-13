@@ -117,7 +117,7 @@ def hf_hub_download(repo_id, filename, *, tqdm_class=None, **kwargs):
 def runtime_fixture(directory):
     """Copy production runtime beside only the fake external SDK dependency."""
     path = Path(directory)
-    runtime = Path(__file__).with_name('neural_runtime.py')
+    runtime = Path(__file__).resolve().parents[1] / 'neural_runtime.py'
     if not runtime.is_file():
         return None
     shutil.copyfile(runtime, path / 'neural_runtime.py')

@@ -12,7 +12,7 @@ import time
 import unittest
 from unittest.mock import Mock, patch
 
-from test_neural_runtime import runtime_fixture
+from tests.test_neural_runtime import runtime_fixture
 
 
 class BackendTests(unittest.TestCase):

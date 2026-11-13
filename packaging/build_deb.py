@@ -42,7 +42,7 @@ def build(output_dir):
         shutil.copytree(packaging / 'licenses', docs / 'licenses')
         for name in ('README.vi.txt', 'copyright', 'VENDORED.txt'):
             shutil.copy2(packaging / name, docs / name)
-        shutil.copy2(ROOT / 'README.md', docs / 'README.md')
+        shutil.copy2(packaging / 'README.desktop.md', docs / 'README.md')
         for relative, source in (
             ('usr/bin/discord-tts-gui', 'discord-tts-gui'),
             ('usr/share/applications/discord-tts-gui-packaged.desktop',

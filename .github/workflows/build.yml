@@ -25,7 +25,9 @@ jobs:
       - name: Run tests offscreen
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m unittest discover -v
+        run: |
+          python tools/check_repo.py
+          python -m unittest discover -s tests -t . -v
       - name: Build Debian package
         run: python packaging/build_deb.py
       - uses: actions/upload-artifact@v4
@@ -61,9 +63,11 @@ jobs:
       - name: Run portable tests offscreen
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m unittest -v test_desktop_packaging test_runtime_support test_media_tools test_portable_audio test_portable_playback test_neural_model_files test_neural_runtime test_neural_backend test_neural_playback
+        run: python -m unittest -v tests.test_desktop_packaging tests.test_runtime_support tests.test_media_tools tests.test_portable_audio tests.test_portable_playback tests.test_neural_model_files tests.test_neural_runtime tests.test_neural_backend tests.test_neural_playback
       - name: Inspect native build plan
-        run: python packaging/build_desktop.py --target ${{ matrix.target }} --plan
+        run: |
+          python tools/check_repo.py
+          python packaging/build_desktop.py --target ${{ matrix.target }} --plan
       - name: Build native package
         run: python packaging/build_desktop.py --target ${{ matrix.target }}
       - name: Check frozen Windows runtime

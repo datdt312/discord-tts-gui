@@ -119,7 +119,8 @@ def archive_bundle(plan):
     with tempfile.TemporaryDirectory(prefix='tts-desktop-package-') as directory:
         stage = Path(directory)
         shutil.copytree(bundle, stage / bundle.name, symlinks=True)
-        for name in ('README.md', 'requirements-desktop.txt'):
+        shutil.copy2(ROOT / 'packaging/README.desktop.md', stage / 'README.md')
+        for name in ('requirements.txt', 'requirements-desktop.txt'):
             shutil.copy2(ROOT / name, stage / name)
         shutil.copytree(ROOT / 'packaging/licenses', stage / 'licenses')
         shutil.copy2(ROOT / 'packaging/copyright', stage / 'copyright')

@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app
-from test_speech import NoAudioReceived
+from tests.test_speech import NoAudioReceived
 
 
 @unittest.skipUnless(shutil.which('ffmpeg'), 'FFmpeg required for streaming integration')

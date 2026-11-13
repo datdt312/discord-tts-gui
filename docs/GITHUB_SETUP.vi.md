@@ -1,72 +1,86 @@
-# Khởi tạo repository GitHub
+# Chuẩn bị Git remote
 
-Thông tin đã chuẩn bị cho dự án; repository trực tuyến chưa được tạo.
+Bộ nguồn không tự kết nối GitHub, đăng nhập hoặc push. Bạn chọn URL remote và
+thực hiện các lệnh bên dưới trong Terminal tại thư mục dự án.
 
-| Trường | Giá trị |
+## Thông tin repository
+
+| Trường | Giá trị đề xuất |
 | --- | --- |
-| Owner | `datdt312` |
-| Repository name | `discord-tts-gui` |
+| Name | `discord-tts-gui` |
 | Description | Cross-platform Vietnamese AI text-to-speech for Discord on Linux, Windows and macOS, with Qt UI and offline voices. |
-| Visibility | **Public** |
+| Visibility | Public, theo lựa chọn của chủ dự án |
 | Default branch | `main` |
-| Phiên bản hiện tại | `1.3.0` |
-| Topics | `discord`, `text-to-speech`, `vietnamese`, `linux`, `windows`, `macos`, `cross-platform`, `pyqt`, `offline-tts`, `vieneu` |
-| README | Dùng `README.md` có sẵn |
-| .gitignore | Dùng `.gitignore` có sẵn |
-| License | Chưa chọn; không tự thêm giấy phép cho mã nguồn của chủ dự án |
+| License | Chưa chọn; không tự thêm giấy phép |
+| README / .gitignore | Dùng các file có sẵn trong bộ nguồn |
 
-Nếu tạo bằng trang GitHub, bỏ chọn tạo README, .gitignore và license tự động,
-vì bộ mã nguồn đã có README và .gitignore. URL dự kiến sau khi tạo thành công:
-`https://github.com/datdt312/discord-tts-gui`.
+Nếu tạo repository trống trên GitHub, bỏ chọn tạo README, .gitignore và license
+tự động để tránh phát sinh lịch sử riêng trước lần push đầu.
 
-## Tạo và push từ bản Git đã chuẩn bị
+## Kiểm tra trước khi commit
 
-Trong thư mục dự án gốc, bản mã nguồn đã commit nằm ở `dist/github-source`.
-Thư mục này là bản sao độc lập; môi trường Python, cache, model tải về và các
-gói `.deb` không nằm trong commit.
-
-Đăng nhập lại nếu cần:
+Dùng Python trong môi trường phát triển đã thiết lập:
 
 ```bash
-gh auth login --hostname github.com --web
+python tools/check_repo.py
+QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -t . -v
 ```
 
-Sau đó, từ thư mục dự án gốc:
+Chi tiết cho PowerShell và các kiểm thử phụ thuộc hệ điều hành nằm trong
+[hướng dẫn kiểm thử](testing.md). Model, cache, môi trường Python, file cài
+và dữ liệu cá nhân được loại khỏi bộ nguồn xuất bằng [exporter](../tools/export_source.py).
+
+## Nếu dùng bộ nguồn ZIP mới
+
+Giải nén vào thư mục mới, rồi chạy:
 
 ```bash
-cd dist/github-source
-gh repo create datdt312/discord-tts-gui --public --source=. --remote=origin --description "Cross-platform Vietnamese AI text-to-speech for Discord on Linux, Windows and macOS, with Qt UI and offline voices." --push
-gh repo view datdt312/discord-tts-gui --json nameWithOwner,url,visibility,defaultBranchRef
-```
-
-Nếu repository đã được tạo thủ công và vẫn trống, dùng:
-
-```bash
-git remote add origin https://github.com/datdt312/discord-tts-gui.git
+git init -b main
+git add .
+git diff --cached --check
+git status --short
+git commit -m "chore: prepare project and engineering harness"
+git remote add origin <REMOTE_URL>
 git push -u origin main
 ```
 
-Nếu repository đã có nội dung, xem lại lịch sử trước khi tích hợp; không dùng
-force push. Các file `.deb` nên được đính kèm GitHub Release khi phát hành.
-Việc tạo repository không tự xuất bản Release.
+Thay `<REMOTE_URL>` bằng URL HTTPS hoặc SSH của repository bạn đã tạo.
+Không ghi token vào URL hoặc commit thông tin đăng nhập.
 
-## Bản sao mang sang máy khác
+## Nếu dùng bản Git đã chuẩn bị
 
-`dist/discord-tts-gui-github.bundle` chứa commit khởi tạo và nhánh `main`:
+Bản bàn giao Git ở `dist/github-source` đã có nhánh `main` và lịch sử commit.
+Từ thư mục dự án gốc:
+
+```bash
+cd dist/github-source
+git status --short
+git remote -v
+git remote add origin <REMOTE_URL>
+git push -u origin main
+```
+
+Nếu đã có `origin`, kiểm tra URL hiện tại trước; chỉ dùng `git remote set-url
+origin <REMOTE_URL>` khi bạn muốn thay URL đó. Nếu remote có commit riêng,
+fetch và tích hợp lịch sử trước khi push; không force push để bỏ qua xung đột.
+
+Trong môi trường agent hiện tại, `.git` của thư mục làm việc bị khóa ghi; bản
+Git độc lập ở `dist/github-source` tránh đụng vào metadata được môi trường bảo vệ.
+Đây không phải yêu cầu khi clone/giải nén dự án trên máy khác.
+
+## Bundle và build
+
+Có thể mang bản Git sang máy khác bằng `dist/discord-tts-gui-github.bundle`:
 
 ```bash
 git clone discord-tts-gui-github.bundle discord-tts-gui
 cd discord-tts-gui
 git remote remove origin
-gh repo create datdt312/discord-tts-gui --public --source=. --remote=origin --description "Cross-platform Vietnamese AI text-to-speech for Discord on Linux, Windows and macOS, with Qt UI and offline voices." --push
+git remote add origin <REMOTE_URL>
+git push -u origin main
 ```
 
-Bundle dùng địa chỉ tác giả `datdt312@users.noreply.github.com`.
-Đây là thông tin tác giả của commit, không phải thông tin đăng nhập.
-
-## Build đa nền tảng
-
-Sau khi push, mở Actions → Build native desktop packages → Run workflow.
-Workflow tạo .deb Linux và ZIP native Windows/macOS (ARM64 + Intel) trong
-Artifacts. Nó không tự đăng Release. Bộ nguồn hiện đã có launcher cho cả
-Windows và macOS; binary native chỉ có sau khi CI build thành công.
+Sau khi push, workflow **Repository checks** kiểm tra source/docs và test.
+Workflow **Build native desktop packages** chạy thủ công hoặc khi push tag
+`v*`, tạo artifacts Linux/Windows/macOS; không tự đăng GitHub Release.
+Xem [quy trình phát hành](releasing.md) trước khi gắn tag hoặc phân phối binary.
