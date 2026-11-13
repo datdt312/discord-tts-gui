@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Discord TTS GUI (Linux)
+Comment=Speak Vietnamese and English into a Discord virtual microphone
+Comment[vi]=Đọc văn bản tiếng Việt và tiếng Anh qua mic ảo vào Discord
+Exec=/usr/bin/discord-tts-gui
+TryExec=/usr/bin/discord-tts-gui
+Icon=discord-tts-gui
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=Discord;TTS;Speech;Vietnamese;Microphone;

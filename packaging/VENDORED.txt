@@ -1,0 +1,8 @@
+Unmodified pure Python sources bundled for reproducible local packaging.
+Native aiohttp and its dependencies are supplied by the target distribution.
+License notices are in licenses/.
+
+edge-tts 7.3.1; Requires-Python: >=3.7; source: https://github.com/rany2/edge-tts
+certifi 2026.10.23; Requires-Python: >=3.7; source: https://github.com/certifi/python-certifi
+tabulate 0.10.0; Requires-Python: >=3.10; source: Homepage, https://github.com/astanin/python-tabulate
+typing_extensions 4.16.0; Requires-Python: >=3.9; source: Bug Tracker, https://github.com/python/typing_extensions/issues

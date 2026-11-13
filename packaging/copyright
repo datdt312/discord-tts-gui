@@ -1,0 +1,29 @@
+Discord TTS GUI application and packaging sources are included as supplied
+in this project. This package does not add a new license grant for them.
+
+Bundled, unmodified third-party sources:
+
+edge-tts 7.3.1
+Source: https://github.com/rany2/edge-tts/tree/7.3.1
+License: LGPL-3.0; srt_composer.py is MIT.
+See licenses/edge-tts-LICENSE and licenses/GPL-3 for the complete terms.
+
+certifi
+Source: https://github.com/certifi/python-certifi
+License: MPL-2.0; see licenses/certifi-LICENSE.
+
+tabulate
+Source: https://github.com/astanin/python-tabulate
+License: MIT; see licenses/tabulate-LICENSE.
+
+typing_extensions
+Source: https://github.com/python/typing_extensions
+License: Python Software Foundation license; see licenses/typing_extensions-LICENSE.
+
+Exact bundled versions and provenance are recorded in VENDORED.txt.
+Native dependencies are not bundled; their distribution packages supply
+their own source information and license notices.
+
+UI runtime (not bundled): PyQt6 or PyQt5 and Qt from distribution packages.
+PyQt is available under GPL-3.0 or a commercial license; see the installed
+distribution's copyright notices. Source: https://www.riverbankcomputing.com/software/pyqt/intro
