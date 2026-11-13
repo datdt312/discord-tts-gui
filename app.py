@@ -12,10 +12,21 @@ import sys
 import tempfile
 import threading
 import time
-import tkinter as tk
 import traceback
+import webbrowser
 from pathlib import Path
-from tkinter import messagebox
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+    TclError = tk.TclError
+except ImportError:
+    # The Qt frontend does not require a separate Tk installation on macOS.
+    tk = None
+    class TclError(Exception):
+        pass
+    from qt_ui import dialogs as messagebox
+
+from media_tools import current_platform, ffmpeg_executable, espeak_executable, subprocess_options
 
 from neural_playback import play_neural_audio
 
@@ -35,6 +46,8 @@ ONLINE_VOICES = {
 
 def use_app_venv():
     """Use installed dependencies even if an old KDE launcher calls system Python."""
+    if getattr(sys, 'frozen', False) or current_platform() != 'linux':
+        return
     script = Path(__file__).resolve()
     environment = script.parent / '.venv'
     python = environment / 'bin/python'
@@ -80,7 +93,9 @@ def restore_display():
 
 
 def command(args, *, check=True, **kw):
-    return subprocess.run(args, capture_output=True, text=True, check=check, **kw)
+    options = subprocess_options()
+    options.update(kw)
+    return subprocess.run(args, capture_output=True, text=True, check=check, **options)
 
 
 def pulse_list(kind):
@@ -102,8 +117,7 @@ async def receive_online_audio(text, voice, speed, write_audio, events=None):
         raise RuntimeError('Cannot import online TTS using ' + sys.executable + ': '
                            + str(error) + '\nRun ./install.sh, close existing app windows, '
                            'and reopen using the installed .venv/bin/python.') from error
-    if shutil.which('ffmpeg') is None:
-        raise RuntimeError('FFmpeg is required for online speech. Run ./install.sh.')
+    ffmpeg_executable()
     rate = f'{round((speed / 155 - 1) * 100):+d}%'
     received_audio = False
     remaining = 60
@@ -203,7 +217,7 @@ async def play_online_speech(text, voice, speed, cancel_event, events):
             read_fd, write_fd = os.pipe()
             try:
                 decoder = await asyncio.create_subprocess_exec(
-                    'ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error',
+                    ffmpeg_executable(), '-nostdin', '-hide_banner', '-loglevel', 'error',
                     '-f', 'mp3', '-probesize', '32', '-analyzeduration', '0',
                     '-i', 'pipe:0', '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le',
                     '-f', 's16le', '-flush_packets', '1', 'pipe:1',
@@ -258,15 +272,15 @@ async def play_online_speech(text, voice, speed, cancel_event, events):
 def synthesize_speech(text, voice, speed, path, engine, cancel_event=None):
     """Write PCM WAV for offline playback or file-based synthesis."""
     if engine == OFFLINE_ENGINE:
-        args = ['espeak-ng', '-v', voice, '-s', str(speed), '-w', path, '--stdin']
+        args = [espeak_executable(), '-v', voice, '-s', str(speed), '-w', path, '--stdin']
         if cancel_event is None:
             subprocess.run(args, input=text, encoding='utf-8', capture_output=True,
-                           check=True, timeout=60)
+                           check=True, timeout=60, **subprocess_options())
             return
         if cancel_event.is_set():
             return
         process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE, encoding='utf-8')
+                                   stderr=subprocess.PIPE, encoding='utf-8', **subprocess_options())
         deadline = time.monotonic() + 60
         pending_input = text
         try:
@@ -304,7 +318,7 @@ def synthesize_speech(text, voice, speed, path, engine, cancel_event=None):
 
         # Edge returns MP3; paplay expects a supported PCM audio container.
         try:
-            command(['ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
+            command([ffmpeg_executable(), '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
                      '-i', mp3, '-ac', '1', '-ar', '48000', '-c:a', 'pcm_s16le', path],
                     timeout=30)
         except Exception as error:
@@ -325,7 +339,7 @@ def bind_text_shortcuts(widget):
         # the highlighted text. <<Paste>> also covers Tk's virtual paste action.
         try:
             value = widget.clipboard_get()
-        except tk.TclError:
+        except TclError:
             return 'break'
         if not value:
             return 'break'
@@ -364,6 +378,14 @@ class DiscordTTS:
         self.root.title(APP)
         self.root.geometry('820x720')
         self.root.minsize(560, 480)
+        self.platform = current_platform()
+        self.portable_audio = None
+        self.active_output = None
+        self.active_output_label = None
+        self.target_devices = {}
+        if self.platform in ('win32', 'darwin'):
+            from portable_audio import PortableAudio
+            self.portable_audio = PortableAudio(system='Windows' if self.platform == 'win32' else 'Darwin')
         self.events = queue.Queue()
         self.modules = []
         self.sink_active = False
@@ -450,6 +472,9 @@ class DiscordTTS:
         self.root.after(100, self.poll)
 
     def refresh_devices(self):
+        if getattr(self, 'portable_audio', None) is not None:
+            self.refresh_portable_devices()
+            return
         try:
             sinks = pulse_list('sinks')
             sources = pulse_list('sources')
@@ -465,6 +490,49 @@ class DiscordTTS:
                 self.mic_var.set(next(iter(self.mic_names)))
         except Exception as error:
             self.note('Audio not available: ' + shorten_error(error))
+
+    def refresh_portable_devices(self):
+        try:
+            self.target_devices = self.portable_audio.devices()
+            self.target_combo['values'] = list(self.target_devices)
+            self.speaker_names = dict(self.target_devices)
+            self.speaker_combo['values'] = list(self.speaker_names)
+            if self.target_var.get() not in self.target_devices:
+                self.target_var.set(self.portable_audio.suggested_device(self.target_devices) or '')
+            if self.speaker_var.get() not in self.speaker_names:
+                self.speaker_var.set('')
+            if self.sink_active and (
+                    self.target_devices.get(self.active_output_label) != self.active_output
+                    or self.target_var.get() != self.active_output_label):
+                if not self.preparing:
+                    self.stop()
+                self.sink_active = False
+                self.active_output = None
+                self.active_output_label = None
+                self.note('Selected audio device disconnected. Refresh and connect again.')
+            self.update_action_buttons()
+        except Exception as error:
+            self.note('Audio not available: ' + shorten_error(error))
+
+    def open_driver_help(self):
+        url = ('https://vb-audio.com/Cable/' if self.platform == 'win32'
+               else 'https://existential.audio/blackhole/')
+        webbrowser.open(url)
+
+    def on_output_changed(self):
+        restart = self.playing and not self.preparing
+        if not self.preparing:
+            self.stop()
+        self.sink_active = False
+        self.active_output = None
+        self.active_output_label = None
+        self.update_action_buttons()
+        if restart:
+            self.create_virtual()
+            if self.sink_active:
+                self.speak()
+        else:
+            self.note('Output selected. Press Connect audio before speaking.')
 
     def load_voices(self):
         self.voice_names = {}
@@ -490,7 +558,7 @@ class DiscordTTS:
             return
         self.engine_hint.set('Offline: eSpeak NG. Vietnamese speech can sound robotic and unclear.')
         try:
-            lines = command(['espeak-ng', '--voices']).stdout.splitlines()[1:]
+            lines = command([espeak_executable(), '--voices']).stdout.splitlines()[1:]
             voices = []
             for line in lines:
                 parts = line.split()
@@ -544,7 +612,9 @@ class DiscordTTS:
         create = getattr(self, 'start_button', None)
         if create is not None:
             ready = getattr(self, 'sink_active', False)
-            create.configure(text='Mic ready' if ready else 'Create virtual mic',
+            portable = getattr(self, 'portable_audio', None) is not None
+            create.configure(text=('Connected' if ready else 'Connect audio') if portable
+                             else ('Mic ready' if ready else 'Create virtual mic'),
                              state='disabled' if ready or blocked else 'normal')
         self.update_setup_button()
 
@@ -637,6 +707,30 @@ class DiscordTTS:
             self.modules.remove(module_id)
 
     def create_virtual(self):
+        if getattr(self, 'portable_audio', None) is not None:
+            device = self.target_devices.get(self.target_var.get())
+            if device is None:
+                messagebox.showwarning(APP, 'Select an audio output first. Install VB-CABLE '
+                                       'on Windows or BlackHole on macOS, then refresh devices.')
+                return
+            try:
+                self.portable_audio.validate_device(device)
+                self.active_output = device
+                self.active_output_label = self.target_var.get()
+                self.sink_active = True
+                label = self.active_output_label.casefold()
+                hint = ('Discord input: CABLE Output' if self.platform == 'win32' and 'cable input' in label
+                        else 'Discord input: ' + self.active_output_label if 'blackhole' in label
+                        else 'Discord input: select the matching virtual input for this output')
+                self.connection_hint_var.set(hint)
+                self.note('Audio connected. ' + hint + '. Press Speak.')
+                self.update_action_buttons()
+            except Exception as error:
+                self.sink_active = False
+                self.active_output = None
+                self.active_output_label = None
+                messagebox.showerror(APP, 'Could not connect audio: ' + shorten_error(error))
+            return
         if self.sink_active:
             self.note('Virtual mic already active. Select Discord TTS Microphone in Discord.')
             return
@@ -661,6 +755,10 @@ class DiscordTTS:
             messagebox.showerror(APP, 'Could not create virtual microphone:\n' + shorten_error(error))
 
     def update_preview(self):
+        if getattr(self, 'portable_audio', None) is not None:
+            if self.playing and not self.preparing:
+                self.speak()
+            return
         self.unload_module(self.preview_module)
         self.preview_module = None
         if not self.sink_active or not self.preview_var.get():
@@ -675,6 +773,10 @@ class DiscordTTS:
             self.note('Preview error: ' + shorten_error(error))
 
     def update_mix(self):
+        if getattr(self, 'portable_audio', None) is not None:
+            self.mix_var.set(False)
+            self.note('Use an external audio mixer to combine your real microphone with TTS.')
+            return
         self.unload_module(self.mic_module)
         self.mic_module = None
         if not self.sink_active or not self.mix_var.get():
@@ -708,7 +810,9 @@ class DiscordTTS:
             self.note('Wait for model setup to finish, or press Stop.')
             return
         if not self.sink_active:
-            messagebox.showwarning(APP, 'Create the virtual microphone first.')
+            messagebox.showwarning(APP, 'Select an output and press Connect audio first.'
+                                   if getattr(self, 'portable_audio', None) is not None
+                                   else 'Create the virtual microphone first.')
             return
         text = self.text.get('1.0', 'end').strip()
         if not text:
@@ -723,7 +827,7 @@ class DiscordTTS:
             return
         try:
             speed = max(80, min(320, int(self.speed_var.get())))
-        except (ValueError, tk.TclError):
+        except (ValueError, TclError):
             messagebox.showwarning(APP, 'Enter a speed between 80 and 320.')
             return
         self._speech_generation = getattr(self, '_speech_generation', 0) + 1
@@ -767,6 +871,9 @@ class DiscordTTS:
         events = events if events is not None else self.events
         path = None
         try:
+            if getattr(self, 'portable_audio', None) is not None:
+                self.play_portable_worker(text, voice, speed, engine, cancel_event, events)
+                return
             if engine == NEURAL_ENGINE:
                 cancellation = cancel_event if cancel_event is not None else threading.Event()
                 play_neural_audio(self.neural, text, voice, speed, SINK, cancellation,
@@ -810,6 +917,28 @@ class DiscordTTS:
                 except OSError:
                     pass
 
+    def play_portable_worker(self, text, voice, speed, engine, cancel_event, events):
+        from portable_playback import play_online, play_neural, play_file
+        cancel = cancel_event if cancel_event is not None else threading.Event()
+        device = self.active_output
+        preview = self.speaker_names.get(self.speaker_var.get()) if self.preview_var.get() else None
+        if self.preview_var.get() and preview is None:
+            raise RuntimeError('Select a speaker for audio preview first.')
+        options = dict(device=device, preview_device=preview)
+        if engine == NEURAL_ENGINE:
+            play_neural(self.neural, text, voice, speed, cancel, events, self.portable_audio, **options)
+        elif engine == ONLINE_ENGINE:
+            asyncio.run(play_online(text, voice, speed, cancel, events,
+                                    receive_online_audio, self.portable_audio, **options))
+        else:
+            with tempfile.TemporaryDirectory(prefix='discord_tts_') as directory:
+                path = str(Path(directory) / 'speech.wav')
+                synthesize_speech(text, voice, speed, path, engine, cancel)
+                if not cancel.is_set():
+                    play_file(path, cancel, events, self.portable_audio, **options)
+        events.put(('done', 'Stopped.' if cancel.is_set()
+                    else 'Finished speaking. Ready for next message.'))
+
     def _cancel_current(self):
         cancel = getattr(self, 'cancel_event', None)
         already_cancelled = cancel is not None and cancel.is_set()
@@ -821,6 +950,9 @@ class DiscordTTS:
                 process.terminate()
             except ProcessLookupError:
                 pass
+        portable = getattr(self, 'portable_audio', None)
+        if portable is not None:
+            portable.stop()
         neural = getattr(self, 'neural', None)
         if neural is not None and not already_cancelled:
             neural.stop()
@@ -852,6 +984,15 @@ class DiscordTTS:
             callback()
 
     def remove_virtual_devices(self):
+        if getattr(self, 'portable_audio', None) is not None:
+            self.portable_audio.stop()
+            self.active_output = None
+            self.active_output_label = None
+            self.sink_active = False
+            self.removing = False
+            self.update_action_buttons()
+            self.note('Audio disconnected. Your installed virtual audio driver is unchanged.')
+            return
         for module_id in reversed(self.modules[:]):
             self.unload_module(module_id)
         self.preview_module = None
@@ -871,6 +1012,9 @@ class DiscordTTS:
             if neural is not None:
                 neural.close()
             self.remove_virtual_devices()
+            portable = getattr(self, 'portable_audio', None)
+            if portable is not None:
+                portable.close()
             self.root.destroy()
 
         self.after_worker(finish)
@@ -879,13 +1023,15 @@ class DiscordTTS:
 def main():
     try:
         use_app_venv()
-        restore_display()
+        if current_platform() == 'linux':
+            restore_display()
         missing = [tool for tool in ('pactl', 'paplay') if shutil.which(tool) is None]
-        if missing:
+        if missing and current_platform() == 'linux':
             raise RuntimeError('Missing commands: ' + ', '.join(missing) + '\nRun ./install.sh')
         # Check this before Qt initialization: a missing display can otherwise
         # abort in the platform plugin before Python can write a startup log.
-        if (not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY')
+        if (current_platform() == 'linux'
+                and not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY')
                 and os.environ.get('QT_QPA_PLATFORM') not in ('offscreen', 'minimal')):
             raise RuntimeError('Qt needs an X11/XWayland or Wayland desktop session. '
                                'Open the app from your desktop terminal.')
@@ -896,11 +1042,11 @@ def main():
         return 0
     except Exception as error:
         message = APP + ' could not start: ' + shorten_error(error)
-        if isinstance(error, tk.TclError):
+        if isinstance(error, TclError):
             message += ('\nRun from your desktop terminal; check DISPLAY and XAUTHORITY.')
         try:
-            state = Path(os.environ.get('XDG_STATE_HOME') or Path.home() / '.local/state')
-            log = state / 'discord-tts-gui' / 'startup.log'
+            from runtime_support import user_state_dir
+            log = user_state_dir() / 'startup.log'
             log.parent.mkdir(parents=True, exist_ok=True)
             log.write_text(message + '\n' + traceback.format_exc(), encoding='utf-8')
             message += '\nStartup log: ' + str(log)

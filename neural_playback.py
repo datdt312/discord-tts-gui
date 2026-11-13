@@ -2,6 +2,8 @@
 import subprocess
 import tempfile
 
+from media_tools import ffmpeg_executable
+
 
 def play_neural_audio(engine, text, voice, speed, sink, cancel_event, on_status, on_player):
     """Consume 48 kHz s16le mono chunks without writing a complete audio file."""
@@ -21,7 +23,7 @@ def play_neural_audio(engine, text, voice, speed, sink, cancel_event, on_status,
         filters.append(f'atempo={factor:.8f}')
     with tempfile.TemporaryFile() as decoder_errors, tempfile.TemporaryFile() as player_errors:
         try:
-            arguments = ['ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error',
+            arguments = [ffmpeg_executable(), '-nostdin', '-hide_banner', '-loglevel', 'error',
                          '-f', 's16le', '-ar', '48000', '-ac', '1',
                          '-probesize', '32', '-analyzeduration', '0', '-i', 'pipe:0']
             if filters:

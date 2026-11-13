@@ -1,13 +1,78 @@
-# Discord TTS GUI — Linux
+# Discord TTS GUI — Linux, Windows & macOS
 
-A Qt desktop app that reads typed text into Discord through a PipeWire/PulseAudio virtual microphone. **VieNeu-TTS offline AI is the default engine.** Microsoft Edge online voices and eSpeak NG are also available. No Discord token, bot, or API key is needed.
+A Qt desktop app that reads typed text into Discord on Linux, Windows and macOS. **VieNeu-TTS offline AI is the default engine.** Microsoft Edge online voices and eSpeak NG are also available. No Discord token, bot, or API key is needed.
 
 Online speech requires Internet access and sends the text you enter to Microsoft's TTS service. Offline eSpeak speech stays on your computer but Vietnamese pronunciation can sound robotic and unclear.
 
-## Install
+## Choose your platform
+
+| Platform | Audio route | Run / package |
+| --- | --- | --- |
+| Linux | PipeWire/PulseAudio virtual mic created by the app | Native `.deb`; `install.sh` for source |
+| Windows | Select **CABLE Input** in the app, **CABLE Output** in Discord | Native `.exe` folder ZIP; `start-windows.bat` for source |
+| macOS (Apple Silicon / Intel) | Select **BlackHole** in the app and Discord | Native `.app` ZIP for your architecture; `start-macos.command` for source |
+
+Windows and macOS use a virtual audio driver installed once by the user.
+The app connects to that driver; disconnecting/closing the app does not uninstall
+it or change your system's default audio devices. Install drivers from the
+[VB-CABLE official page](https://vb-audio.com/Cable/) or
+[BlackHole official page](https://existential.audio/blackhole/). BlackHole can
+also be installed with `brew install blackhole-2ch`.
+
+### Windows / macOS from source
+
+Download/extract the complete cross-platform source archive. Install Python
+3.12 (3.10+ supported for the app), then double-click **start-windows.bat** on
+Windows or **start-macos.command** on macOS. First launch creates
+`.venv-desktop` and installs Qt, the TTS client, FFmpeg and PortAudio dependencies;
+an Internet connection is needed. If a Mac archive extractor drops executable
+permissions, run `chmod +x start-macos.command` in the extracted folder.
+
+Select the virtual audio output, click **Connect audio**, select its matching
+input in Discord and press **Speak**. **Get VB-CABLE / BlackHole driver** opens
+the official vendor page if no virtual endpoint is installed. The app never
+selects system speakers automatically. Speaker preview is optional; select a
+separate speaker in Audio & settings. Mixing a physical microphone is built in
+on Linux; Windows/macOS users can combine it through an external audio mixer.
+
+### Native Windows / macOS bundles
+
+`packaging/build_desktop.py` creates a Windows folder containing
+`Discord TTS GUI.exe`, or a macOS `Discord TTS GUI.app`. The native bundle
+includes Qt, FFmpeg, PortAudio and uv. Optional VieNeu setup uses bundled uv to
+create a private managed Python 3.12 environment on the first **Download** click;
+normal launch/reading does not provision Python or download model weights.
+
+Windows/macOS bundles must be built on their target OS. The GitHub Actions
+workflow in `.github/workflows/build.yml` builds Linux `.deb`, Windows x86_64,
+macOS ARM64 and macOS Intel artifacts on `workflow_dispatch` or a `v*` tag.
+These are CI artifacts, not automatically published GitHub Releases. A real
+GitHub repository and a successful workflow run are required before those
+native archives exist. The Linux environment used for this change cannot
+produce or verify Windows/macOS binaries. Source launchers are included now.
+
+Build natively after installing `requirements-build.txt`:
+
+```bash
+python packaging/build_desktop.py
+```
+
+Inspect a plan on any OS without build dependencies:
+
+```bash
+python packaging/build_desktop.py --target windows --plan
+python packaging/build_desktop.py --target macos --plan
+```
+
+Native artifacts are unsigned; signing/notarization credentials are not configured.
+On macOS use Apple's documented
+[opening procedure for apps from identified/other developers](https://support.apple.com/en-us/102445)
+if the locally built application is blocked.
+
+## Linux installation
 
 For Ubuntu/Kubuntu 22.04+ and Linux Mint 21+, use the single-file installer
-`dist/discord-tts-gui_1.2.0_all.deb`. Double-click it, choose **Install**, then
+`dist/discord-tts-gui_1.3.0_all.deb`. Double-click it, choose **Install**, then
 open **Discord TTS GUI (Linux)** from the applications menu. On Kubuntu use
 Discover to open the package; on Mint use GDebi/Package Installer. First
 installation needs Internet if system dependencies are missing. Online
@@ -18,7 +83,7 @@ If a package installer is not available, install from the directory containing
 the `.deb` with:
 
 ```bash
-sudo apt install ./discord-tts-gui_1.2.0_all.deb
+sudo apt install ./discord-tts-gui_1.3.0_all.deb
 ```
 
 The package includes the current app and unmodified pure Python dependencies.
@@ -77,7 +142,7 @@ python3 -m venv --system-site-packages .venv
 .venv/bin/python app.py
 ```
 
-## GUI does not open from the KDE menu
+## Linux GUI does not open from the KDE menu
 
 The Qt interface uses your X11/XWayland or Wayland desktop session. Some menu
 launches omit `DISPLAY`; the app recovers it from the current user's Xauthority
@@ -146,7 +211,7 @@ loading/verifying the model are separate busy stages; 100% for a file is not
 100% for the full setup.
 
 If version 1.1.0 reported **External data path escapes model directory**, close
-the app, install 1.2.0 and click Download (or Repair in Audio & settings) again. Do not delete the existing cache.
+the app, install 1.3.0 and click Download (or Repair in Audio & settings) again. Do not delete the existing cache.
 This release copies each snapshot's ONNX graphs and companion weights into an
 application-owned folder of regular files before loading them. This avoids
 ONNX Runtime's rejection of Hugging Face snapshot symlinks into different blob
@@ -162,7 +227,17 @@ the virtual mic. The model stays loaded between messages; Stop or closing the
 app releases the worker. The first request after a Stop/app restart must load
 the model again. Changing Speed uses FFmpeg tempo processing.
 
-The model/runtime/cache are under
+Model data is platform-specific:
+
+- Linux: `$XDG_DATA_HOME/discord-tts-gui`, normally `~/.local/share/discord-tts-gui`.
+- Windows: `%LOCALAPPDATA%/discord-tts-gui`.
+- macOS: `~/Library/Application Support/discord-tts-gui`.
+
+The neural environment is under `neural/v3turbo-onnx-fp32` within that directory.
+Startup logs use XDG state on Linux, the same local data root on Windows, and
+`~/Library/Logs/discord-tts-gui` on macOS.
+
+For existing Linux installations the model/runtime/cache remain under
 `$XDG_DATA_HOME/discord-tts-gui/neural/v3turbo-onnx-fp32` or
 `~/.local/share/discord-tts-gui/neural/v3turbo-onnx-fp32`. Downloaded voices remain
 there across package upgrades. Missing/incomplete setup produces an explicit
@@ -224,6 +299,15 @@ device selector or restart Discord.
 - No direct integration with Discord is required; Discord simply reads an OS microphone device.
 
 ## Verification
+
+Cross-platform tests cover VB-CABLE/BlackHole device selection, no implicit
+speaker fallback, real FFmpeg streaming and cancellation with a PortAudio
+boundary double, Qt Windows/macOS routing controls, frozen worker isolation,
+managed Python bootstrap commands, Windows process handling and OS data paths.
+Native Windows/macOS builds, SDK installation and real audio hardware still
+require verification on those systems; passing mocked platform tests does not
+establish hardware compatibility.
+
 
 Run `python3 -m unittest -v`. Tests use local MP3 fixtures, the real FFmpeg decoder,
 a stand-in for the remote TTS provider and a recording subprocess in place of

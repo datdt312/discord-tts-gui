@@ -1,0 +1,86 @@
+name: Build native desktop packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  linux-deb:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install native runtime and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk python3-venv python3-pyqt5 python3-aiohttp libsndfile1 libportaudio2 ffmpeg pulseaudio-utils espeak-ng xauth desktop-file-utils
+          python -m pip install -r requirements-desktop.txt
+      - name: Run tests offscreen
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -v
+      - name: Build Debian package
+        run: python packaging/build_deb.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: discord-tts-gui-linux-deb
+          path: |
+            dist/*.deb
+            dist/SHA256SUMS
+          if-no-files-found: error
+
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: windows
+            architecture: x86_64
+          - runner: macos-15
+            target: macos
+            architecture: arm64
+          - runner: macos-15-intel
+            target: macos
+            architecture: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Run portable tests offscreen
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest -v test_desktop_packaging test_runtime_support test_media_tools test_portable_audio test_portable_playback test_neural_model_files test_neural_runtime test_neural_backend test_neural_playback
+      - name: Inspect native build plan
+        run: python packaging/build_desktop.py --target ${{ matrix.target }} --plan
+      - name: Build native package
+        run: python packaging/build_desktop.py --target ${{ matrix.target }}
+      - name: Check frozen Windows runtime
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath 'dist/desktop-build/dist/Discord TTS GUI/Discord TTS GUI.exe' -ArgumentList '--check' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Frozen runtime check failed: $($process.ExitCode)" }
+      - name: Check frozen macOS runtime
+        if: matrix.target == 'macos'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: '"dist/desktop-build/dist/Discord TTS GUI.app/Contents/MacOS/Discord TTS GUI" --check'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: discord-tts-gui-${{ matrix.target }}-${{ matrix.architecture }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error

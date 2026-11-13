@@ -14,7 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 
-@unittest.skipUnless(shutil.which('dpkg-deb'), 'dpkg-deb required for package integration')
+@unittest.skipUnless(sys.platform.startswith('linux') and shutil.which('dpkg-deb'),
+                     'Linux and dpkg-deb required for package integration')
 class PackageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -47,7 +48,9 @@ class PackageTests(unittest.TestCase):
     def test_contains_current_app_and_portable_python_sources(self):
         self.assertEqual((self.appdir / 'app.py').read_bytes(), (ROOT / 'app.py').read_bytes())
         for name in ('neural_backend.py', 'neural_runtime.py', 'neural_playback.py',
-                     'neural_model_files.py', 'desktop_ui.py', 'qt_ui.py'):
+                     'neural_model_files.py', 'desktop_ui.py', 'qt_ui.py',
+                     'runtime_support.py', 'media_tools.py', 'portable_audio.py',
+                     'portable_playback.py'):
             self.assertEqual((self.appdir / name).read_bytes(), (ROOT / name).read_bytes())
         for relative in ('edge_tts/__init__.py', 'edge_tts/drm.py', 'certifi/cacert.pem',
                          'tabulate/__init__.py', 'typing_extensions.py'):

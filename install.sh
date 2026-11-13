@@ -15,7 +15,7 @@ cp "$SRCDIR/requirements.txt" "$APPDIR/requirements.txt"
 /usr/bin/python3 -m venv --system-site-packages "$APPDIR/.venv"
 "$APPDIR/.venv/bin/python" -m pip install -r "$APPDIR/requirements.txt"
 "$APPDIR/.venv/bin/python" -c 'import edge_tts; import tkinter; from importlib.util import find_spec; assert find_spec("PyQt6") or find_spec("PyQt5"), "Qt binding missing"; print("Python dependencies verified.")'
-for source_file in app.py neural_backend.py neural_runtime.py neural_playback.py neural_model_files.py desktop_ui.py qt_ui.py; do
+for source_file in app.py neural_backend.py neural_runtime.py neural_playback.py neural_model_files.py desktop_ui.py qt_ui.py runtime_support.py media_tools.py portable_audio.py portable_playback.py; do
     cp "$SRCDIR/$source_file" "$APPDIR/$source_file"
 done
 chmod +x "$APPDIR/app.py"

@@ -6,11 +6,11 @@ Thông tin đã chuẩn bị cho dự án; repository trực tuyến chưa đư�
 | --- | --- |
 | Owner | `datdt312` |
 | Repository name | `discord-tts-gui` |
-| Description | Vietnamese offline AI text-to-speech for Discord on Linux, with a Qt desktop UI and virtual microphone. |
+| Description | Cross-platform Vietnamese AI text-to-speech for Discord on Linux, Windows and macOS, with Qt UI and offline voices. |
 | Visibility | **Public** |
 | Default branch | `main` |
-| Phiên bản hiện tại | `1.2.0` |
-| Topics | `discord`, `text-to-speech`, `vietnamese`, `linux`, `pyqt`, `offline-tts`, `vieneu` |
+| Phiên bản hiện tại | `1.3.0` |
+| Topics | `discord`, `text-to-speech`, `vietnamese`, `linux`, `windows`, `macos`, `cross-platform`, `pyqt`, `offline-tts`, `vieneu` |
 | README | Dùng `README.md` có sẵn |
 | .gitignore | Dùng `.gitignore` có sẵn |
 | License | Chưa chọn; không tự thêm giấy phép cho mã nguồn của chủ dự án |
@@ -35,7 +35,7 @@ Sau đó, từ thư mục dự án gốc:
 
 ```bash
 cd dist/github-source
-gh repo create datdt312/discord-tts-gui --public --source=. --remote=origin --description "Vietnamese offline AI text-to-speech for Discord on Linux, with a Qt desktop UI and virtual microphone." --push
+gh repo create datdt312/discord-tts-gui --public --source=. --remote=origin --description "Cross-platform Vietnamese AI text-to-speech for Discord on Linux, Windows and macOS, with Qt UI and offline voices." --push
 gh repo view datdt312/discord-tts-gui --json nameWithOwner,url,visibility,defaultBranchRef
 ```
 
@@ -58,8 +58,15 @@ Việc tạo repository không tự xuất bản Release.
 git clone discord-tts-gui-github.bundle discord-tts-gui
 cd discord-tts-gui
 git remote remove origin
-gh repo create datdt312/discord-tts-gui --public --source=. --remote=origin --description "Vietnamese offline AI text-to-speech for Discord on Linux, with a Qt desktop UI and virtual microphone." --push
+gh repo create datdt312/discord-tts-gui --public --source=. --remote=origin --description "Cross-platform Vietnamese AI text-to-speech for Discord on Linux, Windows and macOS, with Qt UI and offline voices." --push
 ```
 
 Bundle dùng địa chỉ tác giả `datdt312@users.noreply.github.com`.
 Đây là thông tin tác giả của commit, không phải thông tin đăng nhập.
+
+## Build đa nền tảng
+
+Sau khi push, mở Actions → Build native desktop packages → Run workflow.
+Workflow tạo .deb Linux và ZIP native Windows/macOS (ARM64 + Intel) trong
+Artifacts. Nó không tự đăng Release. Bộ nguồn hiện đã có launcher cho cả
+Windows và macOS; binary native chỉ có sau khi CI build thành công.

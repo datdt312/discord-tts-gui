@@ -10,7 +10,11 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '1.2.0'
+VERSION = '1.3.0'
+APP_SOURCES = ('app.py', 'desktop_ui.py', 'qt_ui.py', 'neural_backend.py',
+               'neural_runtime.py', 'neural_playback.py', 'neural_model_files.py',
+               'runtime_support.py', 'media_tools.py', 'portable_audio.py',
+               'portable_playback.py')
 DEPENDENCIES = ('python3 (>= 3.10), python3-tk, python3-pyqt6 | python3-pyqt5, '
                 'python3-venv, libsndfile1, '
                 'python3-aiohttp (>= 3.8.0), '
@@ -30,8 +34,7 @@ def build(output_dir):
         docs = stage / 'usr/share/doc/discord-tts-gui'
         appdir.mkdir(parents=True)
         docs.mkdir(parents=True)
-        for name in ('app.py', 'neural_backend.py', 'neural_runtime.py', 'neural_playback.py',
-                     'neural_model_files.py', 'desktop_ui.py', 'qt_ui.py'):
+        for name in APP_SOURCES:
             shutil.copy2(ROOT / name, appdir / name)
         shutil.copy2(packaging / 'launcher.py', appdir / 'launcher.py')
         shutil.copytree(packaging / 'vendor', appdir / 'vendor',

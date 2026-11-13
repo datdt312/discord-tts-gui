@@ -28,7 +28,12 @@ class ModelFileTests(unittest.TestCase):
         source.write_bytes(data)
         path = self.snapshot / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.symlink_to(os.path.relpath(source, path.parent))
+        try:
+            path.symlink_to(os.path.relpath(source, path.parent))
+        except OSError as error:
+            if os.name == 'nt' and getattr(error, 'winerror', None) == 1314:
+                self.skipTest('Windows symlink privilege is unavailable')
+            raise
         return path
 
     def test_sharded_graph_and_nested_external_weights_become_independent_copies(self):

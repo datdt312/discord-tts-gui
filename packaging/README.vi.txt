@@ -1,12 +1,30 @@
-DISCORD TTS GUI — BẢN LINUX
+DISCORD TTS GUI — LINUX / WINDOWS / MACOS
 
 Dành cho Ubuntu/Kubuntu 22.04 trở lên, Linux Mint 21 trở lên và các bản
 Debian tương thích có Python 3.10 trở lên. Gói không chứa mã máy theo kiến
 trúc CPU; thư viện hệ thống được trình cài đặt lấy đúng theo máy của bạn.
 Chưa kiểm thử trực tiếp trên từng phiên bản Kubuntu/Mint.
 
-CÀI BẰNG CHUỘT
-1. Bấm đúp file discord-tts-gui_1.2.0_all.deb.
+WINDOWS VÀ MACOS
+Gói nguồn đa nền tảng có start-windows.bat và start-macos.command. Cài Python
+3.12, giải nén đủ bộ mã nguồn rồi bấm mở file tương ứng. Lần đầu cần Internet
+để cài thư viện vào .venv-desktop. Các bản native .exe/.app được build bằng
+GitHub Actions trên đúng hệ điều hành; hiện chưa tạo native Windows/Mac từ Linux.
+
+Windows: cài VB-CABLE từ https://vb-audio.com/Cable/; chọn CABLE Input trong app,
+CABLE Output trong Discord. macOS: cài BlackHole từ https://existential.audio/blackhole/
+hoặc brew install blackhole-2ch; chọn BlackHole trong app và Discord.
+Bấm Connect audio trước khi Speak. App không tự cài/gỡ driver và không tự chọn
+loa hệ thống. Preview chọn loa riêng trong Audio & settings. Trộn mic thật
+trên Windows/Mac dùng phần mềm mixer bên ngoài; Linux vẫn có chức năng tích hợp.
+
+Bản native đóng kèm Qt/FFmpeg/PortAudio/uv, không cần cài Python riêng để mở app.
+Khi tải VieNeu lần đầu, uv tạo Python riêng; model/runtime được lưu trong thư
+mục cá nhân đúng hệ điều hành. Bản build chưa ký/notarize. Kiểm thử thiết bị
+thật và bản build Windows/Mac phải thực hiện trên các máy đó.
+
+CÀI LINUX BẰNG CHUỘT
+1. Bấm đúp file discord-tts-gui_1.3.0_all.deb.
 2. Chọn Install/Cài đặt và nhập mật khẩu quản trị khi hệ thống yêu cầu.
    Lần đầu cần Internet để tải các thành phần còn thiếu từ kho của hệ điều hành.
 3. Mở menu ứng dụng, tìm “Discord TTS GUI (Linux)” và bấm mở.
@@ -14,7 +32,7 @@ CÀI BẰNG CHUỘT
 
 Nếu bấm đúp không mở trình cài gói, chọn Open With/Mở bằng Discover trên
 Kubuntu hoặc GDebi/Package Installer trên Linux Mint. Có thể cài bằng lệnh:
-  sudo apt install ./discord-tts-gui_1.2.0_all.deb
+  sudo apt install ./discord-tts-gui_1.3.0_all.deb
 
 SỬ DỤNG
 1. Bấm “Create virtual mic”.
@@ -59,7 +77,7 @@ byte đã tải và trạng thái đang chạy. Cài thư viện/nạp model/ki�
 có trạng thái riêng; file đạt 100% chưa có nghĩa toàn bộ bước cài đã xong.
 
 Nếu bản 1.1.0 báo “External data path escapes model directory”, đóng app,
-cài bản 1.2.0 rồi bấm Download/Repair lại. KHÔNG cần xoá cache hoặc tải lại toàn bộ.
+cài bản 1.3.0 rồi bấm Download/Repair lại. KHÔNG cần xoá cache hoặc tải lại toàn bộ.
 Bản này đặt file ONNX và weights đi kèm thành các file thường cạnh nhau để
 ONNX Runtime nạp được, thay vì theo liên kết sang các thư mục blob khác nhau.
 
@@ -100,3 +118,9 @@ Tìm “discord-tts-gui” trong trình quản lý gói để Remove/Gỡ, hoặ
 
 Gói .deb này dùng cho họ Ubuntu/Debian; không cài trực tiếp trên Fedora,
 Arch, openSUSE. Các hệ đó có thể dùng mã nguồn với các phụ thuộc tương đương.
+
+DỮ LIỆU ĐA NỀN TẢNG
+Windows: %LOCALAPPDATA%/discord-tts-gui
+macOS: ~/Library/Application Support/discord-tts-gui
+Linux: ~/.local/share/discord-tts-gui (hoặc XDG_DATA_HOME).
+Trong đó neural/v3turbo-onnx-fp32 chứa runtime/model. Gói nâng cấp không xoá model.

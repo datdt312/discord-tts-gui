@@ -1,0 +1,4 @@
+-r requirements.txt
+PyQt6>=6.5,<7
+sounddevice>=0.5,<0.6
+imageio-ffmpeg>=0.6,<0.7

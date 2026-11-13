@@ -403,6 +403,7 @@ def _checkbox(text, variable, command):
 
 def build_ui(ui, bind_text_shortcuts_unused, engine_choices):
     window = ui.root.window
+    portable = getattr(ui, 'portable_audio', None) is not None
     window.setStyleSheet(STYLESHEET)
     surface = QtWidgets.QWidget()
     surface.setObjectName('Surface')
@@ -437,6 +438,23 @@ def build_ui(ui, bind_text_shortcuts_unused, engine_choices):
     header.addLayout(heading, 1)
     body_layout.addLayout(header)
 
+    if portable:
+        routing_card, routing_layout = _card()
+        routing_layout.addWidget(_label('Audio output', 'SectionTitle'))
+        windows = ui.platform == 'win32'
+        routing_layout.addWidget(_label(
+            'Choose CABLE Input here, then CABLE Output as the Discord input.' if windows
+            else 'Choose BlackHole here and select the same device as the Discord input.',
+            'Hint', wrap=True))
+        ui.target_var = Value()
+        ui.target_combo = Combo(ui.target_var, command=ui.on_output_changed)
+        ui.target_combo.widget.setAccessibleName('TTS audio output')
+        routing_layout.addWidget(ui.target_combo.widget)
+        ui.driver_button = _button('Get VB-CABLE driver' if windows else 'Get BlackHole driver',
+                                    ui.open_driver_help)
+        routing_layout.addWidget(ui.driver_button.widget)
+        body_layout.addWidget(routing_card)
+
     editor_card, editor_layout = _card()
     editor_heading = QtWidgets.QHBoxLayout()
     editor_heading.addWidget(_label('Your message', 'SectionTitle'))
@@ -447,7 +465,7 @@ def build_ui(ui, bind_text_shortcuts_unused, engine_choices):
     editor.setAccessibleName('Text to speak')
     editor.setPlaceholderText('What would you like to say?')
     editor.setFixedHeight(100)
-    editor.setPlainText('Xin chào mọi người! Đây là giọng đọc từ Discord TTS trên Kubuntu.')
+    editor.setPlainText('Xin chào mọi người! Đây là giọng đọc từ Discord TTS.')
     editor_layout.addWidget(editor)
     ui.text = Text(editor)
     body_layout.addWidget(editor_card)
@@ -542,13 +560,20 @@ def build_ui(ui, bind_text_shortcuts_unused, engine_choices):
     ui.mix_var = Value(False)
     ui.mix_checkbox = _checkbox('Mix real microphone', ui.mix_var, ui.update_mix)
     details.addWidget(ui.mix_checkbox)
-    details.addWidget(_label('Microphone', 'FieldLabel'))
+    mic_label = _label('Microphone', 'FieldLabel')
+    details.addWidget(mic_label)
     ui.mic_var = Value()
     ui.mic_combo = Combo(ui.mic_var, command=ui.update_mix)
     ui.mic_combo.widget.setAccessibleName('Microphone')
     details.addWidget(ui.mic_combo.widget)
+    if portable:
+        ui.mix_checkbox.hide()
+        mic_label.hide()
+        ui.mic_combo.widget.hide()
+        details.addWidget(_label('Real microphone mixing is available through your external audio mixer.',
+                                 'Hint', wrap=True))
     audio_actions = QtWidgets.QHBoxLayout()
-    ui.remove_button = _button('Remove virtual mic', ui.remove_virtual)
+    ui.remove_button = _button('Disconnect audio' if portable else 'Remove virtual mic', ui.remove_virtual)
     audio_actions.addWidget(ui.remove_button.widget)
     audio_actions.addWidget(_button('Refresh devices', ui.refresh_devices).widget)
     audio_actions.addStretch()
@@ -573,16 +598,20 @@ def build_ui(ui, bind_text_shortcuts_unused, engine_choices):
     ui.stop_button.widget.setMinimumWidth(72)
     ui.stop_button.configure(state='disabled')
     actions.addWidget(ui.stop_button.widget)
-    ui.start_button = _button('Create virtual mic', ui.create_virtual)
+    ui.start_button = _button('Connect audio' if portable else 'Create virtual mic', ui.create_virtual)
     actions.addWidget(ui.start_button.widget)
     footer_layout.addLayout(actions)
-    ui.status = Value('Ready. Create a virtual microphone to connect Discord.')
+    ui.status = Value('Select an audio output and press Connect audio.' if portable
+                     else 'Ready. Create a virtual microphone to connect Discord.')
     ui.status_label = _label(variable=ui.status, wrap=True)
     ui.status_label.setAccessibleName('Speech status')
     ui.status_label.setAlignment(_enum(QtCore.Qt, 'AlignmentFlag', 'AlignTop'))
     ui.status_label.ensurePolished()
     ui.status_label.setFixedHeight(ui.status_label.fontMetrics().lineSpacing() * 2 + 3)
     footer_layout.addWidget(ui.status_label)
-    footer_layout.addWidget(_label('Discord input · Discord TTS Microphone', 'ConnectionHint'))
+    ui.connection_hint_var = Value(('Discord input · CABLE Output' if ui.platform == 'win32'
+                                    else 'Discord input · BlackHole') if portable
+                                   else 'Discord input · Discord TTS Microphone')
+    footer_layout.addWidget(_label(name='ConnectionHint', variable=ui.connection_hint_var, wrap=True))
     ui.footer = Widget(footer)
     shell.addWidget(footer)
